@@ -8,6 +8,7 @@ C'est la première brique du futur Scan Service (voir blueprint section 3.3,
 sous-composant "clone_manager").
 """
 
+import os
 import tempfile
 import shutil
 from pathlib import Path
@@ -15,6 +16,17 @@ from dataclasses import dataclass
 
 from git import Repo
 from git.exc import GitCommandError
+
+# Empêche git de tenter un prompt interactif (nom d'utilisateur/mot de
+# passe) quand un clone échoue de façon inattendue — par exemple si
+# GitHub répond de façon inhabituelle, ou si l'URL est mal formée d'une
+# manière que git interprète comme nécessitant une authentification.
+# Sans ça, git reste bloqué indéfiniment à attendre une saisie sur un
+# terminal auquel notre service n'a jamais vraiment accès de façon
+# interactive (surtout une fois en prod, où stdin n'existe pas du tout) —
+# bug découvert en conditions réelles : un scan est resté bloqué plusieurs
+# minutes avant qu'on comprenne que git attendait une réponse silencieuse.
+os.environ["GIT_TERMINAL_PROMPT"] = "0"
 
 
 @dataclass
@@ -34,15 +46,13 @@ def clone_repository(repo_url: str, branch: str | None = None) -> CloneResult:
         branch: branche à cloner. Si None (défaut), clone la branche par
             défaut du repo — on ne peut PAS supposer que c'est "main":
             beaucoup de repos utilisent encore "master", ou un autre nom.
-            Imposer "main" en dur casse le clone sur ces repos.
 
     Returns:
         CloneResult avec le chemin local si succès, ou un message d'erreur.
 
     Notes:
         - Shallow clone (depth=1) : on ne récupère que le dernier commit,
-          pas tout l'historique. Suffisant pour scanner l'état actuel du code,
-          et beaucoup plus rapide/léger que git clone --mirror.
+          pas tout l'historique.
         - Le dossier est créé dans /tmp (via tempfile), donc automatiquement
           isolé d'un scan à l'autre.
         - Cette fonction NE nettoie PAS le dossier après elle-même — c'est
@@ -58,6 +68,11 @@ def clone_repository(repo_url: str, branch: str | None = None) -> CloneResult:
             "to_path": temp_dir,
             "depth": 1,  # shallow clone
             "single_branch": True,
+            # Filet de sécurité supplémentaire en plus de
+            # GIT_TERMINAL_PROMPT=0 : si git reste bloqué pour une raison
+            # qu'on n'a pas anticipée, on force l'arrêt après 60s plutôt
+            # que de laisser la requête HTTP pendre indéfiniment.
+            "kill_after_timeout": 60,
         }
         if branch is not None:
             clone_kwargs["branch"] = branch

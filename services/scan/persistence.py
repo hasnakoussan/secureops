@@ -2,11 +2,19 @@
 persistence.py — Phase 2 : sauvegarde des résultats de scan en base
 
 Fait le pont entre les objets Python de notre pipeline (RiskAssessment,
-Finding, SecretFinding, IacFinding, DependencyFinding) et les modèles
-SQLAlchemy (Scan, Finding en DB).
+Finding, SecretFinding) et les modèles SQLAlchemy (Scan, Finding en DB).
+
+Notes:
+    On a volontairement deux classes nommées "Finding" dans le projet :
+    - semgrep_runner.Finding (objet Python en mémoire, résultat brut)
+    - models.Finding (ligne de table SQLAlchemy)
+    C'est courant dans ce genre d'architecture (couche métier vs couche
+    persistance) mais ça peut prêter à confusion — d'où l'import explicite
+    "as" ci-dessous pour bien les distinguer dans le code.
 """
 
 from datetime import datetime, timezone
+import json
 
 from models import Scan, Finding as DBFinding
 from risk_engine import RiskAssessment
@@ -18,6 +26,7 @@ from trivy_runner import DependencyScanResult
 
 def save_scan_result(
     session,
+    org_id: int,
     repo_url: str,
     assessment: RiskAssessment,
     semgrep_result: SemgrepScanResult | None,
@@ -27,7 +36,7 @@ def save_scan_result(
 ) -> Scan:
     """
     Sauvegarde un scan complet (résumé + findings détaillés des 4 scanners)
-    en base.
+    en base, rattaché à l'organisation qui l'a lancé.
 
     Notes sur le mapping des champs Checkov/Trivy vers la table findings
     (conçue à l'origine pour Semgrep/Gitleaks) :
@@ -36,9 +45,26 @@ def save_scan_result(
           package/version (Trivy)
         - severity : None pour Checkov (pas de sévérité native en OSS),
           la vraie sévérité Trivy sinon
-        - line : 0 pour Trivy (vulnérabilité au niveau du package)
+        - line : 0 pour Trivy (vulnérabilité au niveau du package, pas
+          d'une ligne de code précise)
     """
+    # Tous les scanners sont toujours tentés pour chaque scan (pas de saut
+    # conditionnel) — donc un paramètre à None signifie forcément que ce
+    # scanner a échoué, pas qu'il n'a pas été lancé. On peut donc déduire
+    # la liste des échecs directement à partir de ce qui est déjà transmis,
+    # sans paramètre supplémentaire.
+    failed = []
+    if semgrep_result is None:
+        failed.append("semgrep")
+    if gitleaks_result is None:
+        failed.append("gitleaks")
+    if checkov_result is None:
+        failed.append("checkov")
+    if trivy_result is None:
+        failed.append("trivy")
+
     scan = Scan(
+        org_id=org_id,
         repo_url=repo_url,
         score=assessment.score,
         classification=assessment.classification,
@@ -47,6 +73,7 @@ def save_scan_result(
         medium_count=assessment.summary.medium,
         secrets_count=assessment.summary.secrets_found,
         status="completed",
+        failed_scanners=json.dumps(failed) if failed else None,
         finished_at=datetime.now(timezone.utc),
     )
 
@@ -88,6 +115,7 @@ def save_scan_result(
 
 
 if __name__ == "__main__":
+    # Test de bout en bout : pipeline complet (4 scanners) -> sauvegarde en DB (SQLite)
     from models import get_engine, init_db, get_session
     from clone_manager import clone_repository, cleanup_repository
     from semgrep_runner import run_semgrep
@@ -124,12 +152,13 @@ if __name__ == "__main__":
         assessment = assess_risk(semgrep_result, gitleaks_result, checkov_result, trivy_result)
 
         saved_scan = save_scan_result(
-            session, repo_url, assessment,
+            session, 1, repo_url, assessment,
             semgrep_result, gitleaks_result, checkov_result, trivy_result
         )
         print(f"✅ Scan sauvegardé en DB avec id={saved_scan.id}")
         print(f"   score={saved_scan.score}, findings={len(saved_scan.findings)}")
 
+        # Petit récap par source, pour vérifier que tout est bien rattaché
         from collections import Counter
         sources = Counter(f.source for f in saved_scan.findings)
         for source, count in sources.items():
