@@ -1,16 +1,9 @@
 """
-persistence.py — Phase 2 : sauvegarde des résultats de scan en base
+persistence.py — Phase 4 : sauvegarde des résultats de scan en base
 
-Fait le pont entre les objets Python de notre pipeline (RiskAssessment,
-Finding, SecretFinding) et les modèles SQLAlchemy (Scan, Finding en DB).
-
-Notes:
-    On a volontairement deux classes nommées "Finding" dans le projet :
-    - semgrep_runner.Finding (objet Python en mémoire, résultat brut)
-    - models.Finding (ligne de table SQLAlchemy)
-    C'est courant dans ce genre d'architecture (couche métier vs couche
-    persistance) mais ça peut prêter à confusion — d'où l'import explicite
-    "as" ci-dessous pour bien les distinguer dans le code.
+Le flux réel de l'application passe par create_pending_scan() (appelé
+par l'API) puis update_scan_with_results() ou mark_scan_failed() (appelés
+par le Worker), pour permettre le traitement asynchrone via RabbitMQ.
 """
 
 from datetime import datetime, timezone
@@ -24,35 +17,8 @@ from checkov_runner import IacScanResult
 from trivy_runner import DependencyScanResult
 
 
-def save_scan_result(
-    session,
-    org_id: int,
-    repo_url: str,
-    assessment: RiskAssessment,
-    semgrep_result: SemgrepScanResult | None,
-    gitleaks_result: SecretScanResult | None,
-    checkov_result: IacScanResult | None = None,
-    trivy_result: DependencyScanResult | None = None,
-) -> Scan:
-    """
-    Sauvegarde un scan complet (résumé + findings détaillés des 4 scanners)
-    en base, rattaché à l'organisation qui l'a lancé.
-
-    Notes sur le mapping des champs Checkov/Trivy vers la table findings
-    (conçue à l'origine pour Semgrep/Gitleaks) :
-        - rule_id : check_id (Checkov) ou cve_id (Trivy)
-        - message : ressource concernée (Checkov) ou résumé
-          package/version (Trivy)
-        - severity : None pour Checkov (pas de sévérité native en OSS),
-          la vraie sévérité Trivy sinon
-        - line : 0 pour Trivy (vulnérabilité au niveau du package, pas
-          d'une ligne de code précise)
-    """
-    # Tous les scanners sont toujours tentés pour chaque scan (pas de saut
-    # conditionnel) — donc un paramètre à None signifie forcément que ce
-    # scanner a échoué, pas qu'il n'a pas été lancé. On peut donc déduire
-    # la liste des échecs directement à partir de ce qui est déjà transmis,
-    # sans paramètre supplémentaire.
+def _compute_failed_scanners(semgrep_result, gitleaks_result, checkov_result, trivy_result) -> list[str]:
+    """Tous les scanners sont toujours tentés — None signifie échec."""
     failed = []
     if semgrep_result is None:
         failed.append("semgrep")
@@ -62,21 +28,11 @@ def save_scan_result(
         failed.append("checkov")
     if trivy_result is None:
         failed.append("trivy")
+    return failed
 
-    scan = Scan(
-        org_id=org_id,
-        repo_url=repo_url,
-        score=assessment.score,
-        classification=assessment.classification,
-        critical_count=assessment.summary.critical,
-        high_count=assessment.summary.high,
-        medium_count=assessment.summary.medium,
-        secrets_count=assessment.summary.secrets_found,
-        status="completed",
-        failed_scanners=json.dumps(failed) if failed else None,
-        finished_at=datetime.now(timezone.utc),
-    )
 
+def _append_findings(scan: Scan, semgrep_result, gitleaks_result, checkov_result, trivy_result) -> None:
+    """Construit les DBFinding à partir des résultats bruts et les rattache à `scan`."""
     if semgrep_result is not None and semgrep_result.success:
         for f in semgrep_result.findings:
             scan.findings.append(DBFinding(
@@ -108,62 +64,99 @@ def save_scan_result(
                 message=f"{f.package_name} {f.installed_version} {fix_info}",
             ))
 
+
+def create_pending_scan(session, org_id: int, repo_url: str) -> Scan:
+    """
+    Crée une ligne Scan avec status="pending" — c'est ce que l'API crée
+    immédiatement à la réception de POST /scan, AVANT que le Worker
+    n'ait fait le moindre travail.
+    """
+    scan = Scan(org_id=org_id, repo_url=repo_url, status="pending")
+    session.add(scan)
+    session.commit()
+    return scan
+
+
+def update_scan_with_results(
+    session,
+    scan_id: int,
+    assessment: RiskAssessment,
+    semgrep_result: SemgrepScanResult | None,
+    gitleaks_result: SecretScanResult | None,
+    checkov_result: IacScanResult | None = None,
+    trivy_result: DependencyScanResult | None = None,
+) -> Scan:
+    """Met à jour un scan existant (créé via create_pending_scan) avec ses résultats."""
+    scan = session.query(Scan).filter(Scan.id == scan_id).first()
+    if scan is None:
+        raise ValueError(f"Scan {scan_id} introuvable — impossible de le mettre à jour")
+
+    failed = _compute_failed_scanners(semgrep_result, gitleaks_result, checkov_result, trivy_result)
+
+    scan.score = assessment.score
+    scan.classification = assessment.classification
+    scan.critical_count = assessment.summary.critical
+    scan.high_count = assessment.summary.high
+    scan.medium_count = assessment.summary.medium
+    scan.secrets_count = assessment.summary.secrets_found
+    scan.status = "completed"
+    scan.failed_scanners = json.dumps(failed) if failed else None
+    scan.finished_at = datetime.now(timezone.utc)
+
+    _append_findings(scan, semgrep_result, gitleaks_result, checkov_result, trivy_result)
+
+    session.commit()
+    return scan
+
+
+def mark_scan_failed(session, scan_id: int, error_message: str) -> Scan:
+    """Marque un scan comme entièrement échoué (clone impossible, tous les scanners en échec)."""
+    scan = session.query(Scan).filter(Scan.id == scan_id).first()
+    if scan is None:
+        raise ValueError(f"Scan {scan_id} introuvable — impossible de le marquer en échec")
+
+    scan.status = "failed"
+    scan.error_message = error_message
+    scan.finished_at = datetime.now(timezone.utc)
+
+    session.commit()
+    return scan
+
+
+def save_scan_result(
+    session,
+    org_id: int,
+    repo_url: str,
+    assessment: RiskAssessment,
+    semgrep_result: SemgrepScanResult | None,
+    gitleaks_result: SecretScanResult | None,
+    checkov_result: IacScanResult | None = None,
+    trivy_result: DependencyScanResult | None = None,
+) -> Scan:
+    """
+    Crée ET remplit un scan en une seule étape — gardé pour les scripts
+    de test/exploration en ligne de commande. Le flux réel passe par
+    create_pending_scan() puis update_scan_with_results() séparément.
+    """
+    failed = _compute_failed_scanners(semgrep_result, gitleaks_result, checkov_result, trivy_result)
+
+    scan = Scan(
+        org_id=org_id,
+        repo_url=repo_url,
+        score=assessment.score,
+        classification=assessment.classification,
+        critical_count=assessment.summary.critical,
+        high_count=assessment.summary.high,
+        medium_count=assessment.summary.medium,
+        secrets_count=assessment.summary.secrets_found,
+        status="completed",
+        failed_scanners=json.dumps(failed) if failed else None,
+        finished_at=datetime.now(timezone.utc),
+    )
+
+    _append_findings(scan, semgrep_result, gitleaks_result, checkov_result, trivy_result)
+
     session.add(scan)
     session.commit()
 
     return scan
-
-
-if __name__ == "__main__":
-    # Test de bout en bout : pipeline complet (4 scanners) -> sauvegarde en DB (SQLite)
-    from models import get_engine, init_db, get_session
-    from clone_manager import clone_repository, cleanup_repository
-    from semgrep_runner import run_semgrep
-    from gitleaks_runner import run_gitleaks
-    from checkov_runner import run_checkov
-    from trivy_runner import run_trivy
-    from risk_engine import assess_risk
-
-    engine = get_engine("sqlite:///test_secureops.db")
-    init_db(engine)
-    session = get_session(engine)
-
-    repo_url = "https://github.com/pallets/flask.git"
-    print(f"Clonage de {repo_url}...")
-    clone_result = clone_repository(repo_url)
-
-    if clone_result.success:
-        semgrep_result = run_semgrep(clone_result.local_path)
-        if not semgrep_result.success:
-            semgrep_result = None
-
-        gitleaks_result = run_gitleaks(clone_result.local_path)
-        if not gitleaks_result.success:
-            gitleaks_result = None
-
-        checkov_result = run_checkov(clone_result.local_path)
-        if not checkov_result.success:
-            checkov_result = None
-
-        trivy_result = run_trivy(clone_result.local_path)
-        if not trivy_result.success:
-            trivy_result = None
-
-        assessment = assess_risk(semgrep_result, gitleaks_result, checkov_result, trivy_result)
-
-        saved_scan = save_scan_result(
-            session, 1, repo_url, assessment,
-            semgrep_result, gitleaks_result, checkov_result, trivy_result
-        )
-        print(f"✅ Scan sauvegardé en DB avec id={saved_scan.id}")
-        print(f"   score={saved_scan.score}, findings={len(saved_scan.findings)}")
-
-        # Petit récap par source, pour vérifier que tout est bien rattaché
-        from collections import Counter
-        sources = Counter(f.source for f in saved_scan.findings)
-        for source, count in sources.items():
-            print(f"   - {source}: {count}")
-
-        cleanup_repository(clone_result.local_path)
-
-    session.close()

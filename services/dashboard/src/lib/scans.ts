@@ -28,6 +28,7 @@ export interface ScanDetail extends ScanSummary {
   secrets_count: number;
   findings: Finding[];
   failed_scanners: string[];
+  error_message: string | null;
 }
 
 export function listScans() {
@@ -39,6 +40,11 @@ export function getScan(id: number) {
 }
 
 export function createScan(repoUrl: string) {
+  // Phase 4 : endpoint ASYNCHRONE côté backend — cette promesse se
+  // résout quasi immédiatement (202 Accepted), avec un scan status
+  // "pending" et aucun résultat encore. Le vrai traitement se fait en
+  // arrière-plan par le Worker ; c'est ScanDetail qui sonde ensuite
+  // GET /scans/{id} jusqu'à ce que le résultat soit prêt.
   return scanRequest<ScanDetail>("/scan", {
     method: "POST",
     body: JSON.stringify({ repo_url: repoUrl }),

@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "../components/AppLayout";
 import { ScoreGauge } from "../components/ScoreGauge";
 import { Alert } from "../components/Alert";
+import { Skeleton } from "../components/Skeleton";
+import { Spinner } from "../components/Spinner";
 import { getScan, type ScanDetail as ScanDetailType, type Finding } from "../lib/scans";
 import { ApiError } from "../lib/api";
 
@@ -20,21 +22,52 @@ const SCANNER_NAMES: Record<string, string> = {
   trivy: "Trivy",
 };
 
+const POLL_INTERVAL_MS = 3000;
+
 export function ScanDetail() {
   const { id } = useParams<{ id: string }>();
   const [scan, setScan] = useState<ScanDetailType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     if (!id) return;
-    getScan(Number(id))
-      .then(setScan)
-      .catch((err) =>
-        setError(err instanceof ApiError && err.status === 404
-          ? "Ce scan n'existe pas ou n'appartient pas à votre organisation."
-          : "Erreur de chargement"),
-      );
+    let cancelled = false;
+    let intervalId: number | undefined;
+
+    async function fetchScan() {
+      try {
+        const data = await getScan(Number(id));
+        if (cancelled) return;
+        setScan(data);
+        if (data.status !== "pending" && intervalId !== undefined) {
+          window.clearInterval(intervalId);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          err instanceof ApiError && err.status === 404
+            ? "Ce scan n'existe pas ou n'appartient pas à votre organisation."
+            : "Erreur de chargement",
+        );
+        if (intervalId !== undefined) window.clearInterval(intervalId);
+      }
+    }
+
+    fetchScan();
+    intervalId = window.setInterval(fetchScan, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+    };
   }, [id]);
+
+  useEffect(() => {
+    if (scan?.status !== "pending") return;
+    const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [scan?.status]);
 
   if (error) {
     return (
@@ -54,8 +87,59 @@ export function ScanDetail() {
   if (!scan) {
     return (
       <AppLayout>
-        <div className="max-w-4xl mx-auto px-8 py-10">
-          <p className="text-sm text-[var(--color-text-muted)]">Chargement...</p>
+        <div className="max-w-4xl mx-auto px-8 py-10" aria-label="Chargement du scan">
+          <div className="flex items-start gap-6 mt-4 mb-10">
+            <Skeleton className="w-28 h-28 rounded-full shrink-0" />
+            <div className="flex-1 space-y-3 pt-1">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (scan.status === "pending") {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto px-8 py-10 animate-fade-in">
+          <Link to="/scans" className="text-sm text-[var(--color-accent)] hover:underline">
+            ← Retour aux scans
+          </Link>
+
+          <div className="mt-10 flex flex-col items-center text-center py-16">
+            <Spinner className="h-8 w-8 text-[var(--color-accent)]" />
+            <h1 className="text-lg font-medium mt-4">Scan en cours</h1>
+            <p className="text-sm font-mono text-[var(--color-text-muted)] mt-1 break-all">
+              {scan.repo_url}
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-4">
+              Temps écoulé : {elapsedSeconds}s — généralement 1 à 2 minutes selon la taille du
+              repo. Cette page se met à jour automatiquement.
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (scan.status === "failed") {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto px-8 py-10 animate-fade-in">
+          <Link to="/scans" className="text-sm text-[var(--color-accent)] hover:underline">
+            ← Retour aux scans
+          </Link>
+          <h1 className="text-lg font-mono break-all mt-4 mb-4">{scan.repo_url}</h1>
+          <Alert variant="error">
+            {scan.error_message ?? "Ce scan a échoué pour une raison inconnue."}
+          </Alert>
         </div>
       </AppLayout>
     );
@@ -68,7 +152,7 @@ export function ScanDetail() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto px-8 py-10">
+      <div className="max-w-4xl mx-auto px-8 py-10 animate-fade-in">
         <Link to="/scans" className="text-sm text-[var(--color-accent)] hover:underline">
           ← Retour aux scans
         </Link>
