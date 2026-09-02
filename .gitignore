@@ -7,3 +7,8 @@ bin/gitleaks
 bin/trivy
 *.tfstate
 *.tfstate.*
+aws/
+awscliv2.zip
+infrastructure/.terraform/
+mycode/
+mycode*.zip
