@@ -5,3 +5,5 @@ __pycache__/
 *.db
 bin/gitleaks
 bin/trivy
+*.tfstate
+*.tfstate.*
