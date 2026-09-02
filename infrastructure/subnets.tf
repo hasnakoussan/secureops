@@ -5,10 +5,10 @@ resource "aws_subnet" "public_a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "secureops-public-a"
-    Tier = "public"
-    "kubernetes.io/role/elb"                       = "1"
-    "kubernetes.io/cluster/secureops-cluster"       = "shared"
+    Name                                      = "secureops-public-a"
+    Tier                                      = "public"
+    "kubernetes.io/role/elb"                  = "1"
+    "kubernetes.io/cluster/secureops-cluster" = "shared"
   }
 }
 
@@ -19,10 +19,10 @@ resource "aws_subnet" "public_b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "secureops-public-b"
-    Tier = "public"
-    "kubernetes.io/role/elb"                       = "1"
-    "kubernetes.io/cluster/secureops-cluster"       = "shared"
+    Name                                      = "secureops-public-b"
+    Tier                                      = "public"
+    "kubernetes.io/role/elb"                  = "1"
+    "kubernetes.io/cluster/secureops-cluster" = "shared"
   }
 }
 # ── IGW-creation ──────────────────────────
@@ -62,10 +62,10 @@ resource "aws_subnet" "private_a" {
   availability_zone = var.availability_zones[0]
 
   tags = {
-    Name = "secureops-private-a"
-    Tier = "private"
-    "kubernetes.io/role/internal-elb"              = "1"
-    "kubernetes.io/cluster/secureops-cluster"       = "shared"
+    Name                                      = "secureops-private-a"
+    Tier                                      = "private"
+    "kubernetes.io/role/internal-elb"         = "1"
+    "kubernetes.io/cluster/secureops-cluster" = "shared"
   }
 }
 
@@ -75,9 +75,9 @@ resource "aws_subnet" "private_b" {
   availability_zone = var.availability_zones[1]
 
   tags = {
-    Name = "secureops-private-b"
-    Tier = "private"
-    "kubernetes.io/role/internal-elb"              = "1"
-    "kubernetes.io/cluster/secureops-cluster"       = "shared"
+    Name                                      = "secureops-private-b"
+    Tier                                      = "private"
+    "kubernetes.io/role/internal-elb"         = "1"
+    "kubernetes.io/cluster/secureops-cluster" = "shared"
   }
 }

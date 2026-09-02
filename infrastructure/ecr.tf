@@ -67,7 +67,7 @@ resource "aws_ecr_lifecycle_policy" "auth" {
     rules = [
       {
         rulePriority = 1
-        description   = "Keep only the last 10 images"
+        description  = "Keep only the last 10 images"
 
         selection = {
           tagStatus   = "any"
@@ -90,7 +90,7 @@ resource "aws_ecr_lifecycle_policy" "scan" {
     rules = [
       {
         rulePriority = 1
-        description   = "Keep only the last 10 images"
+        description  = "Keep only the last 10 images"
 
         selection = {
           tagStatus   = "any"
@@ -113,7 +113,7 @@ resource "aws_ecr_lifecycle_policy" "worker" {
     rules = [
       {
         rulePriority = 1
-        description   = "Keep only the last 10 images"
+        description  = "Keep only the last 10 images"
 
         selection = {
           tagStatus   = "any"
@@ -136,7 +136,7 @@ resource "aws_ecr_lifecycle_policy" "dashboard" {
     rules = [
       {
         rulePriority = 1
-        description   = "Keep only the last 10 images"
+        description  = "Keep only the last 10 images"
 
         selection = {
           tagStatus   = "any"

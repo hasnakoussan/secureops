@@ -1,5 +1,5 @@
-const AUTH_BASE_URL = "http://localhost:8001";
-const SCAN_BASE_URL = "http://localhost:8000";
+const AUTH_BASE_URL = "/api";
+const SCAN_BASE_URL = "/api/scan";
 
 const ACCESS_TOKEN_KEY = "secureops_access_token";
 const REFRESH_TOKEN_KEY = "secureops_refresh_token";

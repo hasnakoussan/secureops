@@ -164,7 +164,7 @@ class MemberResponse(BaseModel):
 
 # --- Endpoints ---
 
-@app.post("/auth/register", response_model=TokenResponse, status_code=201)
+@app.post("/api/auth/register", response_model=TokenResponse, status_code=201)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
     """
     Crée une nouvelle organisation ET son premier utilisateur (role owner)
@@ -191,7 +191,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@app.post("/auth/login", response_model=TokenResponse)
+@app.post("/api/auth/login", response_model=TokenResponse)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     """Vérifie email/mot de passe, retourne un nouveau couple de tokens."""
     user = db.query(User).filter(User.email == request.email).first()
@@ -209,7 +209,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
-@app.get("/auth/me", response_model=UserResponse)
+@app.get("/api/auth/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     """Retourne les infos de l'utilisateur authentifié."""
     return UserResponse(
@@ -221,7 +221,7 @@ def get_me(current_user: User = Depends(get_current_user)):
     )
 
 
-@app.post("/auth/refresh", response_model=TokenResponse)
+@app.post("/api/auth/refresh", response_model=TokenResponse)
 def refresh(request: RefreshRequest, db: Session = Depends(get_db)):
     """
     Échange un refresh token valide contre un nouveau couple access+refresh.
@@ -256,7 +256,7 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.get("/auth/users", response_model=list[MemberResponse])
+@app.get("/api/auth/users", response_model=list[MemberResponse])
 def list_members(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -278,7 +278,7 @@ def list_members(
     )
 
 
-@app.post("/auth/invite", response_model=InviteResponse, status_code=201)
+@app.post("/api/auth/invite", response_model=InviteResponse, status_code=201)
 def invite(
     request: InviteRequest,
     current_user: User = Depends(get_current_user),

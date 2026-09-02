@@ -121,7 +121,7 @@ class ScanDetailResponse(ScanSummaryResponse):
         return value
 
 
-@app.post("/scan", response_model=ScanDetailResponse, status_code=202)
+@app.post("/api/scan/scans", response_model=ScanDetailResponse, status_code=202)
 def create_scan(
     request: ScanRequest,
     db: Session = Depends(get_db),
@@ -145,7 +145,7 @@ def create_scan(
     return scan
 
 
-@app.get("/scans", response_model=list[ScanSummaryResponse])
+@app.get("/api/scan/scans", response_model=list[ScanSummaryResponse])
 def list_scans(
     db: Session = Depends(get_db),
     token: TokenPayload = Depends(get_current_org),
@@ -159,7 +159,7 @@ def list_scans(
     )
 
 
-@app.get("/scans/{scan_id}", response_model=ScanDetailResponse)
+@app.get("/api/scan/scans/{scan_id}", response_model=ScanDetailResponse)
 def get_scan(
     scan_id: int,
     db: Session = Depends(get_db),

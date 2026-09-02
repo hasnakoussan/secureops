@@ -48,3 +48,24 @@ resource "aws_secretsmanager_secret_version" "jwt" {
   secret_id     = aws_secretsmanager_secret.jwt.id
   secret_string = random_password.jwt.result
 }
+
+# ============================================================
+# RABBITMQ SECRET
+# ============================================================
+resource "aws_secretsmanager_secret" "rabbitmq" {
+  name        = "${var.project_name}/rabbitmq"
+  description = "SecureOps RabbitMQ credentials"
+  tags = {
+    Name = "${var.project_name}-rabbitmq-secret"
+  }
+}
+
+resource "random_password" "rabbitmq" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret_version" "rabbitmq" {
+  secret_id     = aws_secretsmanager_secret.rabbitmq.id
+  secret_string = random_password.rabbitmq.result
+}

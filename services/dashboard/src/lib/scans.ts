@@ -45,7 +45,7 @@ export function createScan(repoUrl: string) {
   // "pending" et aucun résultat encore. Le vrai traitement se fait en
   // arrière-plan par le Worker ; c'est ScanDetail qui sonde ensuite
   // GET /scans/{id} jusqu'à ce que le résultat soit prêt.
-  return scanRequest<ScanDetail>("/scan", {
+  return scanRequest<ScanDetail>("/scans", {
     method: "POST",
     body: JSON.stringify({ repo_url: repoUrl }),
   });

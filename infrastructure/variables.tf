@@ -24,6 +24,6 @@ variable "db_username" {
   description = "Master username for PostgreSQL"
   type        = string
   sensitive   = true
-  default     ="secureops_admin"
+  default     = "secureops_admin"
 }
 
