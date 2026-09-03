@@ -1,0 +1,141 @@
+name: CI - Build, Scan, Push
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write        # authentification AWS via OIDC
+  contents: read
+  security-events: write # upload des résultats vers l'onglet Security de GitHub
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests unitaires (placeholder)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder tests
+        run: |
+          echo "TODO: pytest côté services Python, jest côté dashboard"
+          echo "Non bloquant tant que les vrais tests ne sont pas écrits"
+
+  sast-secrets-scan:
+    name: Semgrep + Gitleaks + Bandit + Checkov
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Semgrep (SAST multi-langage)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/security-audit
+          generateSarif: "1"
+        continue-on-error: true
+
+      - name: Upload résultats Semgrep
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Gitleaks (secrets dans le code/historique)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bandit (SAST spécifique Python)
+        run: |
+          pip install bandit --break-system-packages
+          bandit -r services/auth services/scan -f sarif -o bandit.sarif || true
+
+      - name: Upload résultats Bandit
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: bandit.sarif
+
+      - name: Checkov (misconfigurations Terraform)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          framework: terraform
+          output_format: sarif
+          output_file_path: checkov.sarif
+          soft_fail: true   # n'échoue pas le job — on veut juste voir les résultats pour l'instant
+
+      - name: Upload résultats Checkov
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+
+  build-scan-push:
+    name: Build + Trivy + Push ECR
+    runs-on: ubuntu-latest
+    needs: sast-secrets-scan
+    strategy:
+      matrix:
+        include:
+          - service: auth
+            dockerfile: services/auth/Dockerfile
+            repo: secureops/auth
+          - service: scan-api
+            dockerfile: services/scan/Dockerfile.api
+            repo: secureops/scan
+          - service: worker
+            dockerfile: services/scan/Dockerfile.worker
+            repo: secureops/worker
+          - service: dashboard
+            dockerfile: services/dashboard/Dockerfile
+            repo: secureops/dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurer les credentials AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::156041398156:role/secureops-github-actions-role
+          aws-region: us-east-1
+
+      - name: Login ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build de l'image
+        run: |
+          docker build -f ${{ matrix.dockerfile }} \
+            -t ${{ matrix.repo }}:${{ github.sha }} .
+
+      - name: Trivy — scan de vulnérabilités
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.repo }}:${{ github.sha }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: CRITICAL
+          exit-code: 1
+
+      - name: Upload résultats Trivy
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+
+      - name: Tag + push vers ECR
+        if: github.ref == 'refs/heads/main'
+        run: |
+          REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+          docker tag ${{ matrix.repo }}:${{ github.sha }} $REGISTRY/${{ matrix.repo }}:${{ github.sha }}
+          docker tag ${{ matrix.repo }}:${{ github.sha }} $REGISTRY/${{ matrix.repo }}:latest
+          docker push $REGISTRY/${{ matrix.repo }}:${{ github.sha }}
+          docker push $REGISTRY/${{ matrix.repo }}:latest
