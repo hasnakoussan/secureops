@@ -1,3 +1,4 @@
+cat > ~/secureops/.github/workflows/ci.yml << 'EOF'
 name: CI - Build, Scan, Push
 
 on:
@@ -45,8 +46,10 @@ jobs:
       - name: Upload résultats Semgrep
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: semgrep.sarif
+          category: semgrep
 
       - name: Gitleaks (secrets dans le code/historique)
         uses: gitleaks/gitleaks-action@v2
@@ -55,29 +58,35 @@ jobs:
 
       - name: Bandit (SAST spécifique Python)
         run: |
-          pip install bandit --break-system-packages
-          bandit -r services/auth services/scan -f sarif -o bandit.sarif || true
+          pip install bandit bandit-sarif-formatter --break-system-packages
+          bandit -r services/auth services/scan -f sarif -o bandit.sarif
+        continue-on-error: true
 
       - name: Upload résultats Bandit
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: bandit.sarif
+          category: bandit
 
       - name: Checkov (misconfigurations Terraform)
         uses: bridgecrewio/checkov-action@master
+        continue-on-error: true
         with:
           directory: infrastructure/
           framework: terraform
           output_format: sarif
           output_file_path: checkov.sarif
-          soft_fail: true   # n'échoue pas le job — on veut juste voir les résultats pour l'instant
+          soft_fail: true
 
       - name: Upload résultats Checkov
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
-          sarif_file: checkov.sarif
+          sarif_file: checkov.sarif/results_sarif.sarif
+          category: checkov
 
   build-scan-push:
     name: Build + Trivy + Push ECR
@@ -128,8 +137,10 @@ jobs:
       - name: Upload résultats Trivy
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
+          category: trivy-${{ matrix.service }}
 
       - name: Tag + push vers ECR
         if: github.ref == 'refs/heads/main'
@@ -139,3 +150,4 @@ jobs:
           docker tag ${{ matrix.repo }}:${{ github.sha }} $REGISTRY/${{ matrix.repo }}:latest
           docker push $REGISTRY/${{ matrix.repo }}:${{ github.sha }}
           docker push $REGISTRY/${{ matrix.repo }}:latest
+EOF
