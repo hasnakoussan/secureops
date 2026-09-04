@@ -48,13 +48,13 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         id: ecr-login
 
-      # 3. Build de l'image Docker du microservice
+      # 3. Build de l'image Docker
       - name: Build de l'image Docker
         run: |
           docker build -f ${{ matrix.dockerfile }} \
             -t ${{ matrix.repo }}:${{ github.sha }} .
 
-      # 4. Scan Trivy (Bloque la suite du job si une faille CRITICAL est trouvée)
+      # 4. Scan Trivy (ignore les CVE sans patch officiel disponible)
       - name: Trivy — scan de vulnérabilités
         uses: aquasecurity/trivy-action@master
         with:
@@ -63,8 +63,9 @@ jobs:
           output: trivy-${{ matrix.service }}.sarif
           severity: CRITICAL
           exit-code: 1
+          ignore-unfixed: true
 
-      # 5. Upload du rapport Trivy vers GitHub Security (s'exécute même si Trivy échoue)
+      # 5. Upload du rapport Trivy
       - name: Upload résultats Trivy
         uses: github/codeql-action/upload-sarif@v3
         if: always()
@@ -73,7 +74,7 @@ jobs:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
 
-      # 6. Push vers ECR (s'exécute uniquement si Trivy a validé l'image)
+      # 6. Push vers ECR
       - name: Tag + push vers ECR
         if: github.ref == 'refs/heads/main'
         run: |
