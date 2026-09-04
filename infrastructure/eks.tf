@@ -20,7 +20,7 @@ resource "aws_eks_cluster" "main" {
     )
     endpoint_public_access  = true
     endpoint_private_access = true
-    public_access_cidrs     = ["0.0.0.0/0"]
+    public_access_cidrs     = ["41.251.11.164/32"]
   }
 
   depends_on = [
