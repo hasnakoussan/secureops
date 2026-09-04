@@ -7,9 +7,9 @@ on:
     branches: [main]
 
 permissions:
-  id-token: write        # Authentification AWS via OIDC
+  id-token: write
   contents: read
-  security-events: write # Upload des rapports Trivy vers GitHub Security
+  security-events: write
 
 jobs:
   build-scan-push:
@@ -36,6 +36,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Étape de débogage pour afficher les réclamations OIDC
+      - name: Inspecter le jeton OIDC GitHub
+        run: |
+          ACTIONS_ID_TOKEN_REQUEST_URL="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com"
+          JWT=$(curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value')
+          echo "Détails du jeton OIDC :"
+          echo $JWT | cut -d. -f2 | base64 -d 2>/dev/null | jq .
+
       # 1. Connexion AWS via OIDC
       - name: Configurer les credentials AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -54,7 +62,7 @@ jobs:
           docker build -f ${{ matrix.dockerfile }} \
             -t ${{ matrix.repo }}:${{ github.sha }} .
 
-      # 4. Scan Trivy (ignore les CVE sans patch officiel disponible)
+      # 4. Scan Trivy
       - name: Trivy — scan de vulnérabilités
         uses: aquasecurity/trivy-action@master
         with:
