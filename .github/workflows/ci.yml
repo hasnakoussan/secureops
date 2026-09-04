@@ -1,4 +1,3 @@
-cat > ~/secureops/.github/workflows/ci.yml << 'EOF'
 name: CI - Build, Scan, Push
 
 on:
@@ -150,4 +149,3 @@ jobs:
           docker tag ${{ matrix.repo }}:${{ github.sha }} $REGISTRY/${{ matrix.repo }}:latest
           docker push $REGISTRY/${{ matrix.repo }}:${{ github.sha }}
           docker push $REGISTRY/${{ matrix.repo }}:latest
-EOF
