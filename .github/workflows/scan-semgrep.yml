@@ -1,3 +1,4 @@
+```yaml
 name: Scan - Semgrep
 
 on:
@@ -10,10 +11,21 @@ jobs:
   semgrep:
     name: Semgrep (SAST)
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Semgrep
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: p/security-audit
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Semgrep
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade semgrep
+
+      - name: Run Semgrep
+        run: |
+          semgrep ci --config p/security-audit --error
+
