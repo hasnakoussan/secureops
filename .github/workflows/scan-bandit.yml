@@ -1,0 +1,28 @@
+name: Bandit Scan
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  bandit:
+    name: Scan Python Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        # -r : récursif sur tout le dossier
+        # -ll : filtre uniquement sur le niveau de sévérité Moyen ou Élevé (évite les fausses alertes Faibles)
+        run: bandit -r . -ll
