@@ -1,0 +1,21 @@
+name: Checkov Scan
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  checkov:
+    name: Scan Infrastructure as Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          framework: all       # Scanne tous les formats détectés (Dockerfile, Terraform, etc.)
+          soft_fail: true      # Ne fait pas échouer le job au début (utile pendant l'apprentissage)
