@@ -1,4 +1,3 @@
-```yaml
 name: Scan - Semgrep
 
 on:
@@ -28,5 +27,4 @@ jobs:
       - name: Run Semgrep
         run: |
           semgrep ci --config p/security-audit --error
-```
 
