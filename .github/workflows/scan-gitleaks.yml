@@ -1,11 +1,14 @@
-
 name: Gitleaks Scan
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [main, master]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [main, master]
+
+permissions:
+  contents: read
+  security-events: write   # nécessaire pour publier les résultats dans l'onglet Security
 
 jobs:
   gitleaks:
@@ -15,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # OBLIGATOIRE : Gitleaks doit pouvoir analyser tout l'historique Git
+          fetch-depth: 0   # obligatoire : Gitleaks doit pouvoir analyser tout l'historique Git
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
