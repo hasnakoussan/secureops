@@ -2,9 +2,13 @@ name: Checkov Scan
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [main, master]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [main, master]
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   checkov:
@@ -17,5 +21,16 @@ jobs:
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          framework: all       # Scanne tous les formats détectés (Dockerfile, Terraform, etc.)
-          soft_fail: true      # Ne fait pas échouer le job au début (utile pendant l'apprentissage)
+          framework: all
+          soft_fail: true   # temporaire : premier passage, on trie les findings avant de rendre bloquant
+          output_format: sarif
+          output_file_path: checkov-results
+        continue-on-error: true
+
+      - name: Upload résultats vers GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: checkov-results/results_sarif.sarif
+          category: checkov
