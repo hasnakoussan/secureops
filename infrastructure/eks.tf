@@ -3,7 +3,7 @@
 # Compromis de coût assumés pour ce portfolio :
 #   - 1 seul nœud EC2 (pas de haute disponibilité)
 #   - instance t3.small, la plus économique tout en restant viable
-resource "aws_eks_cluster" "main" { 
+resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-public-endpoint-enabled.eks-public-endpoint-enabled -- Accès public restreint à l'IP admin (/32, voir public_access_cidrs L17), pas ouvert à Internet. Pas de VPN/bastion en place.
   name     = "${var.project_name}-cluster"
   role_arn = aws_iam_role.eks_cluster.arn
   version  = "1.34"
@@ -12,7 +12,7 @@ resource "aws_eks_cluster" "main" {
       [aws_subnet.public_a.id, aws_subnet.public_b.id],
       [aws_subnet.private_a.id, aws_subnet.private_b.id],
     )
-    endpoint_public_access  = true # nosemgrep: terraform.lang.security.eks-public-endpoint-enabled
+    endpoint_public_access  = true
     endpoint_private_access = true
     public_access_cidrs     = ["41.251.11.164/32"]
   }

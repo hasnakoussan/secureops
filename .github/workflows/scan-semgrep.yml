@@ -2,9 +2,13 @@ name: Semgrep SAST
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [main, master]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [main, master]
+
+permissions:
+  contents: read
+  security-events: write   # nécessaire pour publier les résultats dans l'onglet Security
 
 jobs:
   semgrep:
@@ -17,4 +21,13 @@ jobs:
       - name: Run Semgrep
         uses: semgrep/semgrep-action@v1
         with:
-          config: auto
+          config: p/security-audit
+          generateSarif: "1"
+
+      - name: Upload résultats vers GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
