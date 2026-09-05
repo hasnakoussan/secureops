@@ -2,9 +2,13 @@ name: Bandit Scan
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [main, master]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [main, master]
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   bandit:
@@ -20,9 +24,18 @@ jobs:
           python-version: '3.x'
 
       - name: Install Bandit
-        run: pip install bandit
+        run: pip install bandit bandit-sarif-formatter --break-system-packages
 
       - name: Run Bandit
-        # -r : récursif sur tout le dossier
-        # -ll : filtre uniquement sur le niveau de sévérité Moyen ou Élevé (évite les fausses alertes Faibles)
-        run: bandit -r . -ll
+        # -r    : récursif, ciblé sur les dossiers Python uniquement (pas infra/dashboard)
+        # -ll   : ne remonte que les findings de sévérité Medium ou High (ignore les Low, trop bruyants)
+        # -f sarif -o : format compatible avec l'onglet Security de GitHub
+        run: bandit -r services/auth services/scan -ll -f sarif -o bandit.sarif
+
+      - name: Upload résultats vers GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
