@@ -4,6 +4,7 @@
 #   - 1 seul nœud EC2 (pas de haute disponibilité)
 #   - instance t3.small, la plus économique tout en restant viable
 
+#checkov:skip=CKV_AWS_39:Accès public restreint à l'IP admin via public_access_cidrs (/32), pas désactivé complètement -- pas de VPN/bastion en place pour piloter le cluster autrement. Voir aussi le nosemgrep équivalent sur cette ressource.
 #checkov:skip=CKV_AWS_58:Chiffrement KMS des secrets Kubernetes non activé -- coût/complexité additionnels non justifiés pour ce portfolio. Les secrets applicatifs sensibles (DB, JWT, RabbitMQ) transitent par AWS Secrets Manager + External Secrets Operator, pas stockés en clair côté EKS.
 resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-public-endpoint-enabled.eks-public-endpoint-enabled -- Accès public restreint à l'IP admin (/32, voir public_access_cidrs L17), pas ouvert à Internet. Pas de VPN/bastion en place.
   name     = "${var.project_name}-cluster"
