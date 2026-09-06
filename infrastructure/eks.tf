@@ -1,12 +1,11 @@
 # eks.tf — cluster EKS et son node group.
 #
-# Compromis de coût assumés pour ce portfolio :
-#   - 1 seul nœud EC2 (pas de haute disponibilité)
-#   - instance t3.small, la plus économique tout en restant viable
-
-#checkov:skip=CKV_AWS_39:Accès public restreint à l'IP admin via public_access_cidrs (/32), pas désactivé complètement -- pas de VPN/bastion en place pour piloter le cluster autrement. Voir aussi le nosemgrep équivalent sur cette ressource.
-#checkov:skip=CKV_AWS_58:Chiffrement KMS des secrets Kubernetes non activé -- coût/complexité additionnels non justifiés pour ce portfolio. Les secrets applicatifs sensibles (DB, JWT, RabbitMQ) transitent par AWS Secrets Manager + External Secrets Operator, pas stockés en clair côté EKS.
-resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-public-endpoint-enabled.eks-public-endpoint-enabled -- Accès public restreint à l'IP admin (/32, voir public_access_cidrs L17), pas ouvert à Internet. Pas de VPN/bastion en place.
+# Compromis de cout assumes pour ce portfolio :
+#   - 1 seul noeud EC2 (pas de haute disponibilite)
+#   - instance t3.small, la plus economique tout en restant viable
+resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-public-endpoint-enabled.eks-public-endpoint-enabled -- Acces public restreint a l'IP admin (/32, voir public_access_cidrs), pas ouvert a Internet. Pas de VPN/bastion en place.
+  #checkov:skip=CKV_AWS_39:Public access restricted to admin IP via public_access_cidrs (/32), not fully disabled -- no VPN/bastion in place to administer the cluster otherwise.
+  #checkov:skip=CKV_AWS_58:KMS envelope encryption for Kubernetes secrets not enabled -- cost/complexity not justified for this portfolio. Sensitive app secrets (DB, JWT, RabbitMQ) go through Secrets Manager + External Secrets Operator, not stored in plain K8s secrets.
   name     = "${var.project_name}-cluster"
   role_arn = aws_iam_role.eks_cluster.arn
   version  = "1.34"
@@ -20,7 +19,7 @@ resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-pub
     )
     endpoint_public_access  = true
     endpoint_private_access = true
-    public_access_cidrs     = ["41.251.11.164/32"]
+    public_access_cidrs     = ["196.64.162.246/32"]
   }
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
@@ -30,9 +29,9 @@ resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-pub
   }
 }
 
-# Groupe de logs CloudWatch dédié, avec rétention courte pour limiter les coûts
-# (sans ce bloc, EKS créerait le groupe avec une rétention illimitée par défaut)
 resource "aws_cloudwatch_log_group" "eks_cluster" {
+  #checkov:skip=CKV_AWS_158:KMS encryption not enabled for this log group -- default AES256 encryption judged sufficient for this portfolio.
+  #checkov:skip=CKV_AWS_338:1 year retention not applied -- 7 days retention chosen to limit CloudWatch costs on this portfolio project.
   name              = "/aws/eks/${var.project_name}-cluster/cluster"
   retention_in_days = 7
 

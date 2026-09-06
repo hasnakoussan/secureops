@@ -12,11 +12,11 @@ resource "aws_security_group" "rds" {
   }
 
   egress {
-    description = "Allow outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    description = "PostgreSQL responses within the VPC only -- RDS never needs to initiate outbound internet traffic"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = {

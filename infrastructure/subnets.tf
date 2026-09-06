@@ -1,4 +1,5 @@
 resource "aws_subnet" "public_a" {
+  #checkov:skip=CKV_AWS_130:Public IP on launch is intentional -- this subnet hosts the ALB and NAT Gateway, which require public IPs.
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
   availability_zone       = var.availability_zones[0]
@@ -13,6 +14,7 @@ resource "aws_subnet" "public_a" {
 }
 
 resource "aws_subnet" "public_b" {
+  #checkov:skip=CKV_AWS_130:Public IP on launch is intentional -- this subnet hosts the ALB and NAT Gateway, which require public IPs.
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.2.0/24"
   availability_zone       = var.availability_zones[1]
