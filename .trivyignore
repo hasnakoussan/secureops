@@ -4,3 +4,12 @@
 CVE-2026-13221
 CVE-2026-42496
 CVE-2026-8376
+
+# Vulnérabilités dans le binaire Gitleaks (releases officielles, compilées par l'équipe Gitleaks)
+# Gitleaks est un outil interne utilisé en CLI par le Worker pour scanner des dépôts déjà
+# clonés localement -- pas de service réseau exposé, pas de connexions SSH/TLS sortantes
+# actives dans notre cas d'usage. Surface d'exposition jugée minimale.
+# Pas de version Gitleaks disponible avec un Go corrigé au moment de l'audit (2026-09-08) ;
+# nécessiterait de recompiler Gitleaks depuis le code source (hors scope pour l'instant).
+CVE-2025-68121
+CVE-2026-56854
