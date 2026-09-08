@@ -81,6 +81,7 @@ jobs:
           image-ref: ${{ matrix.repo }}:${{ github.sha }}
           format: sarif
           output: trivy-${{ matrix.service }}.sarif
+          limit-severities-for-sarif: true
           severity: CRITICAL
           exit-code: 1
           ignore-unfixed: true
