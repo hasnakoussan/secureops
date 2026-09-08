@@ -31,7 +31,6 @@ jobs:
           - service: dashboard
             dockerfile: services/dashboard/Dockerfile
             repo: secureops/dashboard
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,7 +39,7 @@ jobs:
       - name: Configurer les credentials AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::156041398156:role/secureops-github-actions-role
+          role-to-assume: arn:aws:iam::265404808693:role/secureops-github-actions-role
           aws-region: us-east-1
 
       # 2. Login ECR
@@ -48,13 +47,25 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         id: ecr-login
 
-      # 3. Build de l'image Docker
-      - name: Build de l'image Docker
-        run: |
-          docker build -f ${{ matrix.dockerfile }} \
-            -t ${{ matrix.repo }}:${{ github.sha }} .
+      # 3. Préparer buildx (nécessaire pour le cache GitHub Actions)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # 4. Scan Trivy
+      # 4. Build de l'image Docker, avec cache GitHub Actions
+      #    load: true -> l'image reste disponible localement pour le scan Trivy juste après
+      #    push: false -> on ne pousse pas encore, Trivy doit valider d'abord
+      - name: Build de l'image Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          tags: ${{ matrix.repo }}:${{ github.sha }}
+          load: true
+          push: false
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      # 5. Scan Trivy — bloque le job si une faille CRITICAL est trouvée
       - name: Trivy — scan de vulnérabilités
         uses: aquasecurity/trivy-action@master
         with:
@@ -65,7 +76,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
 
-      # 5. Upload du rapport Trivy
+      # 6. Upload du rapport Trivy vers GitHub Security
       - name: Upload résultats Trivy
         uses: github/codeql-action/upload-sarif@v3
         if: always()
@@ -74,7 +85,7 @@ jobs:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
 
-      # 6. Push vers ECR
+      # 7. Push vers ECR (uniquement sur main, uniquement si Trivy a validé l'image)
       - name: Tag + push vers ECR
         if: github.ref == 'refs/heads/main'
         run: |
