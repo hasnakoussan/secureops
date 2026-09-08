@@ -1,0 +1,6 @@
+# Vulnérabilités Perl dans l'image de base python:3.12-slim (Debian 13)
+# Perl est une dépendance transitive du système, non utilisée par le code applicatif du Worker.
+# Aucun correctif disponible côté Debian au moment de l'audit (2026-09-08).
+CVE-2026-13221
+CVE-2026-42496
+CVE-2026-8376

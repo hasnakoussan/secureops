@@ -72,6 +72,7 @@ jobs:
           format: table
           severity: CRITICAL
           exit-code: 0
+          trivyignores: .trivyignore
 
       # 6. Trivy — scan réel, bloquant, génère le SARIF pour GitHub Security
       - name: Trivy — scan de vulnérabilités
@@ -83,6 +84,7 @@ jobs:
           severity: CRITICAL
           exit-code: 1
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
       # 7. Upload du rapport Trivy vers GitHub Security
       - name: Upload résultats Trivy
