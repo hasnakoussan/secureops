@@ -52,8 +52,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       # 4. Build de l'image Docker, avec cache GitHub Actions
-      #    load: true -> l'image reste disponible localement pour le scan Trivy juste après
-      #    push: false -> on ne pousse pas encore, Trivy doit valider d'abord
       - name: Build de l'image Docker
         uses: docker/build-push-action@v6
         with:
@@ -65,7 +63,17 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-      # 5. Scan Trivy — bloque le job si une faille CRITICAL est trouvée
+      # 5. Trivy — affichage lisible dans les logs (informatif, ne bloque jamais)
+      - name: Trivy — affichage lisible
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.repo }}:${{ github.sha }}
+          format: table
+          severity: CRITICAL
+          exit-code: 0
+
+      # 6. Trivy — scan réel, bloquant, génère le SARIF pour GitHub Security
       - name: Trivy — scan de vulnérabilités
         uses: aquasecurity/trivy-action@master
         with:
@@ -76,7 +84,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
 
-      # 6. Upload du rapport Trivy vers GitHub Security
+      # 7. Upload du rapport Trivy vers GitHub Security
       - name: Upload résultats Trivy
         uses: github/codeql-action/upload-sarif@v3
         if: always()
@@ -85,7 +93,7 @@ jobs:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
 
-      # 7. Push vers ECR (uniquement sur main, uniquement si Trivy a validé l'image)
+      # 8. Push vers ECR (uniquement sur main, uniquement si Trivy a validé l'image)
       - name: Tag + push vers ECR
         if: github.ref == 'refs/heads/main'
         run: |
