@@ -328,3 +328,4 @@ def invite(
         org_id=new_user.org_id,
         temporary_password=temporary_password,
     )
+# test cycle GitOps complet
