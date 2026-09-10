@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: worker
-          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/worker:e720b76a91d341d7a6d80899f94473d28c40b354
+          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/worker:ad1023a0b6231fe2c562d3800272ab3b9c00a361
           env:
             - name: DATABASE_URL
               valueFrom:
