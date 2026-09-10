@@ -224,12 +224,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Remplacer :latest par le tag du commit
+      - name: Mettre à jour le tag de l'image vers le commit courant
         run: |
-          sed -i "s|secureops/auth:latest|secureops/auth:${{ github.sha }}|" k8s/auth.yaml
-          sed -i "s|secureops/scan:latest|secureops/scan:${{ github.sha }}|" k8s/scan-api.yaml
-          sed -i "s|secureops/worker:latest|secureops/worker:${{ github.sha }}|" k8s/worker.yaml
-          sed -i "s|secureops/dashboard:latest|secureops/dashboard:${{ github.sha }}|" k8s/dashboard.yaml
+          sed -i "s|\(secureops/auth:\).*|\1${{ github.sha }}|" k8s/auth.yaml
+          sed -i "s|\(secureops/scan:\).*|\1${{ github.sha }}|" k8s/scan-api.yaml
+          sed -i "s|\(secureops/worker:\).*|\1${{ github.sha }}|" k8s/worker.yaml
+          sed -i "s|\(secureops/dashboard:\).*|\1${{ github.sha }}|" k8s/dashboard.yaml
 
       - name: Commit + push
         run: |
