@@ -329,3 +329,4 @@ def invite(
         temporary_password=temporary_password,
     )
 # test cycle GitOps complet
+# test cycle GitOps complet
