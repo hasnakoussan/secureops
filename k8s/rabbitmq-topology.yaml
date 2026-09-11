@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-topology
+  namespace: secureops
+data:
+  rabbitmq.conf: |
+    load_definitions = /etc/rabbitmq/definitions.json
+
+  definitions.json: |
+    {
+      "exchanges": [
+        { "name": "falco.events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+        { "name": "falco.dlx", "vhost": "/", "type": "fanout", "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
+      ],
+      "queues": [
+        { "name": "falco.notifications", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "falco.dlx" } },
+        { "name": "falco.response", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "falco.dlx" } },
+        { "name": "falco.dead-letter", "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} }
+      ],
+      "bindings": [
+        { "source": "falco.events", "vhost": "/", "destination": "falco.notifications", "destination_type": "queue", "routing_key": "falco.#", "arguments": {} },
+        { "source": "falco.events", "vhost": "/", "destination": "falco.response", "destination_type": "queue", "routing_key": "falco.critical.#", "arguments": {} },
+        { "source": "falco.dlx", "vhost": "/", "destination": "falco.dead-letter", "destination_type": "queue", "routing_key": "", "arguments": {} }
+      ]
+    }

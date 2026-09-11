@@ -41,6 +41,17 @@ spec:
               port: 5672
             initialDelaySeconds: 10
             periodSeconds: 5
+          volumeMounts:
+            - name: rabbitmq-topology
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+            - name: rabbitmq-topology
+              mountPath: /etc/rabbitmq/definitions.json
+              subPath: definitions.json
+      volumes:
+        - name: rabbitmq-topology
+          configMap:
+            name: rabbitmq-topology
 ---
 apiVersion: v1
 kind: Service
