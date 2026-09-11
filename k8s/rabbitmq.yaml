@@ -13,6 +13,24 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      initContainers:
+        - name: render-definitions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - 'sed "s|__RABBITMQ_PASSWORD__|$RABBITMQ_PASSWORD|g" /template/definitions.json.template > /rendered/definitions.json'
+          env:
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-credentials
+                  key: RABBITMQ_PASSWORD
+          volumeMounts:
+            - name: rabbitmq-topology
+              mountPath: /template
+            - name: rendered-definitions
+              mountPath: /rendered
       containers:
         - name: rabbitmq
           image: rabbitmq:3.13-management-alpine
@@ -21,14 +39,6 @@ spec:
               name: amqp
             - containerPort: 15672
               name: management
-          env:
-            - name: RABBITMQ_DEFAULT_USER
-              value: "secureops"
-            - name: RABBITMQ_DEFAULT_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: rabbitmq-credentials
-                  key: RABBITMQ_PASSWORD
           resources:
             requests:
               cpu: 100m
@@ -45,13 +55,15 @@ spec:
             - name: rabbitmq-topology
               mountPath: /etc/rabbitmq/rabbitmq.conf
               subPath: rabbitmq.conf
-            - name: rabbitmq-topology
+            - name: rendered-definitions
               mountPath: /etc/rabbitmq/definitions.json
               subPath: definitions.json
       volumes:
         - name: rabbitmq-topology
           configMap:
             name: rabbitmq-topology
+        - name: rendered-definitions
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

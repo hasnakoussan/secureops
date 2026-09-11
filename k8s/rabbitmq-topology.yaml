@@ -7,10 +7,16 @@ data:
   rabbitmq.conf: |
     load_definitions = /etc/rabbitmq/definitions.json
 
-  definitions.json: |
+  definitions.json.template: |
     {
       "vhosts": [
         { "name": "/" }
+      ],
+      "users": [
+        { "name": "secureops", "password": "__RABBITMQ_PASSWORD__", "tags": "administrator" }
+      ],
+      "permissions": [
+        { "user": "secureops", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*" }
       ],
       "exchanges": [
         { "name": "falco.events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
