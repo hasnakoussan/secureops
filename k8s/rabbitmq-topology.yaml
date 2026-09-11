@@ -9,6 +9,9 @@ data:
 
   definitions.json: |
     {
+      "vhosts": [
+        { "name": "/" }
+      ],
       "exchanges": [
         { "name": "falco.events", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
         { "name": "falco.dlx", "vhost": "/", "type": "fanout", "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
