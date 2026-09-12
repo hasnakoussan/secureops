@@ -12,9 +12,7 @@ resource "aws_iam_policy" "external_secrets" {
           "secretsmanager:DescribeSecret"
         ]
         Resource = [
-          aws_secretsmanager_secret.database.arn,
-          aws_secretsmanager_secret.jwt.arn,
-          aws_secretsmanager_secret.rabbitmq.arn
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:secureops/*"
         ]
       }
     ]

@@ -19,7 +19,7 @@ resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-pub
     )
     endpoint_public_access  = true
     endpoint_private_access = true
-    public_access_cidrs     = ["105.154.204.247/32"]
+    public_access_cidrs     = ["160.177.90.240/32"]
   }
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
@@ -49,9 +49,9 @@ resource "aws_eks_node_group" "main" {
   ami_type       = "AL2023_x86_64_STANDARD"
   capacity_type  = "ON_DEMAND"
   scaling_config {
-    desired_size = 2
-    min_size     = 2
-    max_size     = 2
+    desired_size = 5
+    min_size     = 3
+    max_size     = 6
   }
   update_config {
     max_unavailable = 1

@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_iam_role" "github_actions" {
   name = "${var.project_name}-github-actions-role"
 
@@ -51,10 +53,7 @@ resource "aws_iam_policy" "github_actions_ecr" {
           "ecr:CompleteLayerUpload"
         ]
         Resource = [
-          aws_ecr_repository.auth.arn,
-          aws_ecr_repository.scan.arn,
-          aws_ecr_repository.worker.arn,
-          aws_ecr_repository.dashboard.arn
+          "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/secureops/*"
         ]
       }
     ]
