@@ -76,7 +76,7 @@ jobs:
         run: pip install bandit bandit-sarif-formatter --break-system-packages
 
       - name: Run Bandit
-        run: bandit -r services/auth services/scan -ll -f sarif -o bandit.sarif
+        run: bandit -r services/auth services/scan services/falco-bridge -ll -f sarif -o bandit.sarif
 
       - name: Upload résultats vers GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -142,6 +142,9 @@ jobs:
           - service: dashboard
             dockerfile: services/dashboard/Dockerfile
             repo: secureops/dashboard
+          - service: falco-bridge
+            dockerfile: services/falco-bridge/Dockerfile
+            repo: secureops/falco-bridge
     steps:
       - uses: actions/checkout@v4
 
@@ -230,12 +233,13 @@ jobs:
           sed -i "s|\(secureops/scan:\).*|\1${{ github.sha }}|" k8s/scan-api.yaml
           sed -i "s|\(secureops/worker:\).*|\1${{ github.sha }}|" k8s/worker.yaml
           sed -i "s|\(secureops/dashboard:\).*|\1${{ github.sha }}|" k8s/dashboard.yaml
+          sed -i "s|\(secureops/falco-bridge:\).*|\1${{ github.sha }}|" k8s/falco-bridge.yaml
 
       - name: Commit + push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/auth.yaml k8s/scan-api.yaml k8s/worker.yaml k8s/dashboard.yaml
+          git add k8s/auth.yaml k8s/scan-api.yaml k8s/worker.yaml k8s/dashboard.yaml k8s/falco-bridge.yaml
           git diff --staged --quiet && echo "Rien à committer" && exit 0
           git commit -m "ci: déploie l'image ${{ github.sha }} [skip ci]"
           git push
