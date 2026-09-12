@@ -13,6 +13,7 @@ spec:
       labels:
         app: notification
     spec:
+      serviceAccountName: notification-sa
       containers:
         - name: notification
           image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/notification:bef2d31ae87fa68064de8fb5e8a9daa31e81d8da
@@ -29,6 +30,12 @@ spec:
                   key: RABBITMQ_PASSWORD
             - name: RABBITMQ_URL
               value: "amqp://secureops:$(RABBITMQ_PASSWORD)@rabbitmq:5672/"
+            - name: SES_SENDER_EMAIL
+              value: "secureopsalerts@gmail.com"
+            - name: SES_RECIPIENT_EMAIL
+              value: "secureopsalerts@gmail.com"
+            - name: AWS_REGION
+              value: "us-east-1"
           resources:
             requests:
               cpu: 50m
