@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: notification
-          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/notification:c843448ec223a57899af3e5184436a5122cce70e
+          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/notification:1ebcb77572a801fff4e4e1428785181276bf5886
           env:
             - name: SLACK_WEBHOOK_URL
               valueFrom:

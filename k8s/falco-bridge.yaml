@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: falco-bridge
-          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/falco-bridge:c843448ec223a57899af3e5184436a5122cce70e
+          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/falco-bridge:1ebcb77572a801fff4e4e1428785181276bf5886
           ports:
             - containerPort: 8006
               name: http
