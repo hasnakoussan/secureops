@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: dashboard
-          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/dashboard:5b7124fe8c93e6118a732ec69e626509271ed797
+          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/dashboard:c71807418cfb3068f7fdbb4cea434f596c9d30a6
           ports:
             - containerPort: 80
           resources:
