@@ -4,12 +4,12 @@ driver:
 customRules:
   custom_rules.yaml: |
     - list: legit_k8s_api_callers
-      items: [argocd-server, argocd-applicat, external-secret]
+      items: [argocd-server, argocd-applicat, argocd-notifica, external-secret, descheduler]
 
     - rule: Unexpected connection to K8s API Server from container
       desc: >
         Détecte une connexion inattendue vers l'API K8s depuis un conteneur,
-        en excluant les process légitimes connus du cluster (ArgoCD, External Secrets).
+        en excluant les process légitimes connus du cluster (ArgoCD, External Secrets, descheduler).
       condition: >
         (evt.type=connect and evt.dir=< and fd.typechar=4)
         and (fd.rip="172.20.0.1" or fd.sip="172.20.0.1")
@@ -22,8 +22,16 @@ customRules:
       priority: NOTICE
       tags: [network, k8s, mitre_discovery]
 
+    # Exception ajoutée à la règle PAR DÉFAUT du chart Falco (pas notre règle custom),
+    # qui génère le même type de bruit pour les mêmes process légitimes.
+    # "append: true" modifie la condition existante sans réécrire toute la règle.
+    - rule: Contact K8S API Server From Container
+      append: true
+      condition: and not proc.name in (legit_k8s_api_callers)
+
 falcosidekick:
   enabled: true
   config:
     existingSecret: falcosidekick-webhook-secret
-    minimumpriority: "warning"
+    webhook:
+      minimumpriority: "warning"
