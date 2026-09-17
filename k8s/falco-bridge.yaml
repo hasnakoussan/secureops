@@ -12,6 +12,7 @@ spec:
     metadata:
       labels:
         app: falco-bridge
+        secureops.io/critical-infra: "true"
     spec:
       containers:
         - name: falco-bridge

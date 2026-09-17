@@ -12,6 +12,7 @@ spec:
     metadata:
       labels:
         app: rabbitmq
+        secureops.io/critical-infra: "true"
     spec:
       initContainers:
         - name: render-definitions
