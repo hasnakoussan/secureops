@@ -19,7 +19,7 @@ resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-pub
     )
     endpoint_public_access  = true
     endpoint_private_access = true
-    public_access_cidrs     = ["154.144.244.213/32"]
+    public_access_cidrs     = ["196.74.133.43/32"]
   }
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,

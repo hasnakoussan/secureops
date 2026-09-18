@@ -1,29 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: notification
+  name: response
   namespace: secureops
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: notification
+      app: response
   template:
     metadata:
       labels:
-        app: notification
+        app: response
         secureops.io/critical-infra: "true"
     spec:
-      serviceAccountName: notification-sa
+      serviceAccountName: response-sa
       containers:
-        - name: notification
-          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/notification:e536b77f059ace8c4bbbe24c3f4cbe971aa74b61
+        - name: response
+          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/response:init
           env:
-            - name: SLACK_WEBHOOK_URL
-              valueFrom:
-                secretKeyRef:
-                  name: notification-credentials
-                  key: SLACK_WEBHOOK_URL
             - name: RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -31,12 +26,6 @@ spec:
                   key: RABBITMQ_PASSWORD
             - name: RABBITMQ_URL
               value: "amqp://secureops:$(RABBITMQ_PASSWORD)@rabbitmq:5672/"
-            - name: SES_SENDER_EMAIL
-              value: "secureopsalerts@gmail.com"
-            - name: SES_RECIPIENT_EMAIL
-              value: "secureopsalerts@gmail.com"
-            - name: AWS_REGION
-              value: "us-east-1"
           resources:
             requests:
               cpu: 50m
