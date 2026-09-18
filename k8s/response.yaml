@@ -17,7 +17,7 @@ spec:
       serviceAccountName: response-sa
       containers:
         - name: response
-          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/response:init
+          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/response:f2e3f514c1cdca71f404f6b8566d22cc7c56c12a
           env:
             - name: RABBITMQ_PASSWORD
               valueFrom:
