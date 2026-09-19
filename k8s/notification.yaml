@@ -17,7 +17,7 @@ spec:
       serviceAccountName: notification-sa
       containers:
         - name: notification
-          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/notification:21e2b24f37b5e0b061008dc849dcf995f350444e
+          image: 265404808693.dkr.ecr.us-east-1.amazonaws.com/secureops/notification:6a75db08892267572537b5ba8a379f8259c3f73c
           env:
             - name: SLACK_WEBHOOK_URL
               valueFrom:
