@@ -40,6 +40,8 @@ spec:
               name: amqp
             - containerPort: 15672
               name: management
+            - containerPort: 15692
+              name: metrics
           resources:
             requests:
               cpu: 100m
@@ -59,12 +61,18 @@ spec:
             - name: rendered-definitions
               mountPath: /etc/rabbitmq/definitions.json
               subPath: definitions.json
+            - name: enabled-plugins
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
       volumes:
         - name: rabbitmq-topology
           configMap:
             name: rabbitmq-topology
         - name: rendered-definitions
           emptyDir: {}
+        - name: enabled-plugins
+          configMap:
+            name: rabbitmq-topology
 ---
 apiVersion: v1
 kind: Service
@@ -81,3 +89,6 @@ spec:
     - name: management
       port: 15672
       targetPort: 15672
+    - name: metrics
+      port: 15692
+      targetPort: 15692

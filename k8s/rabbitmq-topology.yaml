@@ -7,6 +7,9 @@ data:
   rabbitmq.conf: |
     load_definitions = /etc/rabbitmq/definitions.json
 
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_prometheus].
+
   definitions.json.template: |
     {
       "vhosts": [
