@@ -79,6 +79,8 @@ kind: Service
 metadata:
   name: rabbitmq
   namespace: secureops
+  labels:
+    app: rabbitmq 
 spec:
   selector:
     app: rabbitmq
