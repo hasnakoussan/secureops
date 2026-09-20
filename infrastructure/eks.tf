@@ -19,7 +19,7 @@ resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-pub
     )
     endpoint_public_access  = true
     endpoint_private_access = true
-    public_access_cidrs     = ["196.74.133.43/32"]
+    public_access_cidrs     = ["160.176.148.185/32"]
   }
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
@@ -40,18 +40,61 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
   }
 }
 
+# Launch template personnalisé, uniquement pour augmenter max-pods via
+# nodeadm (AL2023). ENABLE_PREFIX_DELEGATION=true est déjà actif sur le CNI,
+# mais kubelet calcule sa propre limite de pods au démarrage et l'ignore par
+# défaut -- ce NodeConfig force la vraie valeur (110, standard AWS pour une
+# instance avec prefix delegation). Format MIME multipart requis par EKS
+# pour un nodegroup managé (il fusionne ce user_data avec son propre script
+# de bootstrap).
+resource "aws_launch_template" "eks_nodes" {
+  name_prefix = "${var.project_name}-nodes-"
+
+  user_data = base64encode(<<-EOT
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: application/node.eks.aws
+
+    ---
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      kubelet:
+        config:
+          maxPods: 110
+
+    --BOUNDARY--
+  EOT
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "${var.project_name}-nodes"
+    }
+  }
+}
+
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.project_name}-nodes"
   node_role_arn   = aws_iam_role.eks_node.arn
-  subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]
-  instance_types = ["t3.small"]
-  ami_type       = "AL2023_x86_64_STANDARD"
-  capacity_type  = "ON_DEMAND"
+  subnet_ids      = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+  instance_types  = ["t3.small"]
+  ami_type        = "AL2023_x86_64_STANDARD"
+  capacity_type   = "ON_DEMAND"
+
+  launch_template {
+    id      = aws_launch_template.eks_nodes.id
+    version = aws_launch_template.eks_nodes.latest_version
+  }
+
   scaling_config {
-    desired_size = 5
+    desired_size = 4
     min_size     = 3
-    max_size     = 6
+    max_size     = 4
   }
   update_config {
     max_unavailable = 1
@@ -72,7 +115,7 @@ resource "aws_eks_addon" "vpc_cni" {
 resource "aws_eks_addon" "coredns" {
   cluster_name = aws_eks_cluster.main.name
   addon_name   = "coredns"
-  depends_on = [aws_eks_node_group.main]
+  depends_on   = [aws_eks_node_group.main]
 }
 resource "aws_eks_addon" "kube_proxy" {
   cluster_name = aws_eks_cluster.main.name
