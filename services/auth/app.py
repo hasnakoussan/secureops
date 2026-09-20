@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 from dotenv import load_dotenv
-
+from prometheus_fastapi_instrumentator import Instrumentator
 # IMPORTANT : load_dotenv() doit s'exécuter AVANT l'import de security.py,
 # car ce module lit JWT_SECRET depuis l'environnement au moment de l'import
 # (variable de module, pas relue à chaque appel). Si l'ordre est inversé,
@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="SecureOps — Auth Service", lifespan=lifespan)
-
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 # CORS : autorise le dashboard React (dev server sur localhost:5173) à
 # appeler cette API depuis le navigateur. En production, on restreindrait
 # allow_origins au vrai domaine du dashboard plutôt que localhost.

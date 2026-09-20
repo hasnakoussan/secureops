@@ -31,7 +31,7 @@ from models import get_engine, init_db, get_session as get_db_session, Scan
 from persistence import create_pending_scan, mark_scan_failed
 from queue_client import publish_scan_request
 from auth_verification import verify_access_token, TokenPayload
-
+from prometheus_fastapi_instrumentator import Instrumentator
 engine = get_engine(os.environ["DATABASE_URL"])
 
 
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="SecureOps — Scan Service", lifespan=lifespan)
-
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
