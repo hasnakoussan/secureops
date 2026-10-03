@@ -13,3 +13,7 @@ CVE-2026-8376
 # nécessiterait de recompiler Gitleaks depuis le code source (hors scope pour l'instant).
 CVE-2025-68121
 CVE-2026-56854
+
+# PyJWT 2.13.0 : dépendance transitive de semgrep 1.173.0 (pyjwt~=2.13.0), non utilisée par le code du Worker.
+# Le correctif 2.14.0 est incompatible avec la contrainte de semgrep (2026-10-03).
+CVE-2026-102268
