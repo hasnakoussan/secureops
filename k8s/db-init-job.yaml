@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+  namespace: secureops
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-init
+          image: postgres:16-alpine
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DATABASE_URL
+          command:
+            - sh
+            - -c
+            - |
+              ADMIN_URL=$(echo "$DATABASE_URL" | sed 's#/secureops_db$#/postgres#')
+              psql "$ADMIN_URL" -tc "SELECT 1 FROM pg_database WHERE datname='secureops_db'" | grep -q 1 \
+                || psql "$ADMIN_URL" -c "CREATE DATABASE secureops_db;"
