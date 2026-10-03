@@ -48,6 +48,8 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
 # pour un nodegroup managé (il fusionne ce user_data avec son propre script
 # de bootstrap). metadata_options force IMDSv2 (CKV_AWS_79).
 resource "aws_launch_template" "eks_nodes" {
+  #checkov:skip=CKV_AWS_341: Hop limit 2 volontaire pour acces IMDS depuis les pods. IMDSv2 reste obligatoire.
+  #checkov:skip=CKV_AWS_341: Hop limit 2 volontaire pour que les pods (ex. LB Controller) puissent joindre IMDS via le réseau pod. IMDSv2 reste obligatoire (http_tokens=required). A repasser a 1 avec region/vpcId explicites.
   name_prefix = "${var.project_name}-nodes-"
 
   metadata_options {
