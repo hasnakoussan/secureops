@@ -62,6 +62,36 @@ resource "aws_ecr_repository" "dashboard" {
   }
 }
 
+resource "aws_ecr_repository" "notification" {
+  #checkov:skip=CKV_AWS_51:Mutable tag latest is intentional, used by CI pipeline and K8s manifests. Will move to immutable tags with Argo CD (deploy by SHA).
+  #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
+  name                 = "${var.project_name}/notification"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "${var.project_name}-notification"
+  }
+}
+
+resource "aws_ecr_repository" "falco_bridge" {
+  #checkov:skip=CKV_AWS_51:Mutable tag latest is intentional, used by CI pipeline and K8s manifests. Will move to immutable tags with Argo CD (deploy by SHA).
+  #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
+  name                 = "${var.project_name}/falco-bridge"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "${var.project_name}-falco-bridge"
+  }
+}
+
 
 # ============================================================
 # ECR Lifecycle Policies
@@ -139,6 +169,52 @@ resource "aws_ecr_lifecycle_policy" "worker" {
 
 resource "aws_ecr_lifecycle_policy" "dashboard" {
   repository = aws_ecr_repository.dashboard.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep only the last 10 images"
+
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "notification" {
+  repository = aws_ecr_repository.notification.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep only the last 10 images"
+
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "falco_bridge" {
+  repository = aws_ecr_repository.falco_bridge.name
 
   policy = jsonencode({
     rules = [

@@ -83,3 +83,18 @@ resource "aws_subnet" "private_b" {
     "kubernetes.io/cluster/secureops-cluster" = "shared"
   }
 }
+# DB-only subnet: extra AZ so RDS can find capacity (db.t4g.micro + gp3)
+resource "aws_subnet" "private_f" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.13.0/24"
+  availability_zone = var.rds_extra_availability_zone
+
+  tags = {
+    Name = "secureops-private-f"
+    Tier = "private"
+  }
+}
+resource "aws_route_table_association" "private_f" {
+  subnet_id      = aws_subnet.private_f.id
+  route_table_id = aws_route_table.private.id
+}

@@ -19,7 +19,7 @@ resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-pub
     )
     endpoint_public_access  = true
     endpoint_private_access = true
-    public_access_cidrs     = ["160.176.148.185/32"]
+    public_access_cidrs     = ["154.144.244.213/32"]
   }
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
@@ -46,9 +46,15 @@ resource "aws_cloudwatch_log_group" "eks_cluster" {
 # défaut -- ce NodeConfig force la vraie valeur (110, standard AWS pour une
 # instance avec prefix delegation). Format MIME multipart requis par EKS
 # pour un nodegroup managé (il fusionne ce user_data avec son propre script
-# de bootstrap).
+# de bootstrap). metadata_options force IMDSv2 (CKV_AWS_79).
 resource "aws_launch_template" "eks_nodes" {
   name_prefix = "${var.project_name}-nodes-"
+
+  metadata_options {
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+    http_endpoint               = "enabled"
+  }
 
   user_data = base64encode(<<-EOT
     MIME-Version: 1.0
@@ -111,6 +117,12 @@ resource "aws_eks_node_group" "main" {
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = aws_eks_cluster.main.name
   addon_name   = "vpc-cni"
+
+  configuration_values = jsonencode({
+    env = {
+      ENABLE_PREFIX_DELEGATION = "true"
+    }
+  })
 }
 resource "aws_eks_addon" "coredns" {
   cluster_name = aws_eks_cluster.main.name

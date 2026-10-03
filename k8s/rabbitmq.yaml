@@ -80,7 +80,7 @@ metadata:
   name: rabbitmq
   namespace: secureops
   labels:
-    app: rabbitmq 
+    app: rabbitmq
 spec:
   selector:
     app: rabbitmq

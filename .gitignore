@@ -12,3 +12,9 @@ awscliv2.zip
 infrastructure/.terraform/
 mycode/
 mycode*.zip
+terraform.tfvars
+*.tfvars
+infrastructure/tfplan
+infrastructure/plan_output.txt
+infrastructure/f:
+*.tfplan
