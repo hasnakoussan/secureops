@@ -19,7 +19,7 @@ resource "aws_eks_cluster" "main" { # nosemgrep: terraform.lang.security.eks-pub
     )
     endpoint_public_access  = true
     endpoint_private_access = true
-    public_access_cidrs     = ["154.144.244.213/32"]
+    public_access_cidrs     = ["105.158.85.179/32"]
   }
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
@@ -121,6 +121,8 @@ resource "aws_eks_addon" "vpc_cni" {
   addon_name   = "vpc-cni"
 
   configuration_values = jsonencode({
+    enableNetworkPolicy = "true"
+
     env = {
       ENABLE_PREFIX_DELEGATION = "true"
     }

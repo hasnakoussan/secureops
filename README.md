@@ -1,133 +1,195 @@
-# SecureOps
+# 🔐 SecureOps
 
-Plateforme SaaS DevSecOps qui centralise plusieurs outils de scan de sécurité (analyse statique, secrets, dépendances, infrastructure as code) derrière une API unique, avec calcul d'un score de risque exploitable.
+Plateforme DevSecOps déployée sur AWS : une application SaaS d'analyse de sécurité du code, un pipeline CI/CD sécurisé, du GitOps avec ArgoCD et une réponse automatique aux menaces sur Kubernetes.
 
-**Statut actuel : Phase 1 & 2 du blueprint terminées** — pipeline de scan complet fonctionnel avec persistance et API REST.
+> Projet portfolio réalisé en 4 mois, déployé sur une infrastructure AWS réelle (EKS, RDS, ECR, Secrets Manager).
 
-## Problème résolu
+![Architecture](docs/architecture.png)
 
-Une équipe dev/sécu utilise généralement 5-6 outils différents (Semgrep, Trivy, Checkov, Gitleaks...) de façon manuelle et déconnectée. SecureOps centralise ces outils dans une seule plateforme qui répond à une question : *"Mon app est-elle prête à être déployée en toute sécurité ?"*
+## ✨ Fonctionnalités
 
-## Ce qui fonctionne aujourd'hui
+La plateforme permet de :
 
-- Clonage automatique d'un repo Git (shallow clone, détection de branche par défaut)
-- 4 scanners intégrés en parallèle conceptuel :
-  - **Semgrep** — analyse statique du code
-  - **Gitleaks** — détection de secrets hardcodés
-  - **Checkov** — mauvaises configurations Infrastructure as Code (Terraform)
-  - **Trivy** — CVE connues dans les dépendances (mode filesystem)
-- Normalisation des résultats des 4 scanners vers un vocabulaire commun
-- Calcul d'un score de risque (0-100) et classification (Safe/Warning/Critical)
-- Persistance PostgreSQL (historique des scans, détail des findings)
-- API REST (FastAPI) : lancer un scan, lister l'historique, consulter le détail
+- connecter un dépôt GitHub ;
+- analyser automatiquement le code et la configuration ;
+- détecter des vulnérabilités et des mauvaises configurations ;
+- générer un **score de sécurité DevSecOps** ;
+- visualiser les résultats dans un **dashboard React**.
 
-## Architecture
+Côté plateforme :
+
+- **Infrastructure as Code** complète avec Terraform, scannée par Checkov ;
+- **CI/CD sécurisé** : SAST, détection de secrets, scan d'images bloquant ;
+- **GitOps** avec ArgoCD (pattern App-of-Apps) ;
+- **Détection et réponse automatisée** aux menaces runtime avec Falco ;
+- **Notifications** Slack et email (SES) ;
+- **Observabilité** avec Prometheus et Grafana.
+
+## 🏗️ Architecture
+
+### Flux GitOps
+
+```mermaid
+flowchart TD
+    Dev[Développeur] -->|git push / PR| Repo[GitHub repo - main]
+    Repo -->|déclenche| CI["GitHub Actions<br/>Scans + Build + Trivy"]
+    CI -->|push image - tag sha, OIDC| ECR[(AWS ECR<br/>7 dépôts)]
+    CI -->|update-manifests : commit du tag| Repo
+    Repo -->|pull ~ 3 min| Argo[ArgoCD]
+    Argo --> Root["Application root<br/>argocd-apps/"]
+    Root --> A1["App secureops<br/>k8s/"]
+    Root --> A2["App falco<br/>Helm + values.yaml"]
+    Root --> A3["App monitoring<br/>kube-prometheus-stack"]
+    A1 -->|sync auto| N1[Namespace secureops]
+    A2 -->|sync auto| N2[Namespace falco]
+    A3 -->|sync auto| N3[Namespace monitoring]
+    ECR -.->|pull des images| N1
+```
+
+### Détection et réponse aux menaces
+
+```mermaid
+flowchart LR
+    Falco[Falco - DaemonSet] --> Sidekick[Falcosidekick]
+    Sidekick -->|webhook HMAC| Bridge[falco-bridge]
+    Bridge -->|falco.events| MQ[(RabbitMQ)]
+    MQ -->|falco.response| Response[response]
+    MQ -->|falco.notifications| Notif[notification]
+    Response -->|quarantaine du pod| API[API Kubernetes]
+    Notif --> Slack[Slack]
+    Notif --> SES[AWS SES - email]
+```
+
+Lors d'une alerte critique, le pod est **mis en quarantaine** : retrait du label applicatif (il sort du Service) et application d'une NetworkPolicy `deny-all`. Le pod n'est jamais supprimé, ce qui préserve les preuves pour l'investigation forensique, pendant que le Deployment recrée un pod sain.
+
+## 🧩 Composants
+
+### Microservices (namespace `secureops`)
+
+| Service | Rôle |
+|---|---|
+| `dashboard` | Interface React |
+| `auth` | Authentification JWT, équipes par organisation (multi-tenant) |
+| `scan-api` | API de lancement et de consultation des scans |
+| `worker` | Exécute les analyses (Semgrep, Gitleaks, Checkov, Trivy) et calcule le score de risque |
+| `falco-bridge` | Reçoit les alertes Falco et les publie dans RabbitMQ |
+| `response` | Met en quarantaine les pods compromis |
+| `notification` | Envoie les alertes Slack et email (SES) |
+| `rabbitmq` | Bus de messages (files `scan_requests`, `falco.events`, `falco.response`, `falco.notifications`, `falco.dead-letter`) |
+
+### Infrastructure (AWS, `us-east-1`)
+
+- **Réseau** : VPC, sous-réseaux publics et privés, NAT Gateway, ALB (via AWS Load Balancer Controller)
+- **Calcul** : cluster EKS, node group managé
+- **Données** : RDS PostgreSQL 16 chiffré, dans des sous-réseaux dédiés
+- **Images** : ECR (7 dépôts)
+- **Secrets** : AWS Secrets Manager
+- **Logs** : CloudWatch (control plane EKS)
+
+### Composants du cluster (installés avec Helm)
+
+| Composant | Rôle |
+|---|---|
+| ArgoCD | Déploiement continu GitOps |
+| External Secrets Operator (ESO) | Synchronise Secrets Manager vers les Secrets Kubernetes |
+| AWS Load Balancer Controller | Crée l'ALB à partir de l'Ingress |
+| Descheduler | Rééquilibre les pods entre les nœuds |
+| Falco + Falcosidekick | Détection runtime et routage des alertes |
+| kube-prometheus-stack | Prometheus et Grafana |
+
+## 🔄 Pipeline CI/CD
+
+À chaque push, le workflow `.github/workflows/ci.yaml` exécute :
+
+1. **Scans en parallèle** : Semgrep (SAST), Gitleaks (secrets), Bandit (Python), Checkov (Terraform) ;
+2. **Build des 7 images** Docker, chacune scannée par **Trivy** (bloquant sur les vulnérabilités CRITICAL corrigeables) ;
+3. **Push vers ECR** (tag = sha du commit), uniquement sur `main` ;
+4. **`update-manifests`** : le pipeline remplace le tag d'image dans `k8s/`, puis commit et push.
+
+ArgoCD détecte ce commit et déploie la nouvelle version. Chaque déploiement correspond donc à une diff Git visible, auditable, et réversible avec un `git revert`.
+
+Une boucle infinie est évitée par `paths-ignore: k8s/**` et par `[skip ci]` dans le message du commit.
+
+## 🔒 Sécurité
+
+- **Aucune clé statique** : OIDC pour GitHub Actions vers AWS, Pod Identity pour les pods vers AWS ;
+- **Aucun secret dans Git ni dans les images** : AWS Secrets Manager + ESO ;
+- **RBAC** : ServiceAccounts dédiés, Roles limités aux besoins du service ;
+- **NetworkPolicy** : isolation réseau, `deny-all` pour les pods en quarantaine ;
+- **Accès restreint** : serveur ArgoCD en `ClusterIP`, API EKS limitée à l'IP de l'administrateur ;
+- **Chiffrement** : base RDS chiffrée.
+
+## 📁 Structure du dépôt
 
 ```
-Client HTTP
-    │
-    ▼
-FastAPI (app.py)
-    │
-    ├── clone_manager.py    → clone le repo (shallow, branche auto-détectée)
-    │
-    ├── semgrep_runner.py   ─┐
-    ├── gitleaks_runner.py   │
-    ├── checkov_runner.py    ├─ 4 scanners, exécutés en subprocess
-    ├── trivy_runner.py     ─┘
-    │
-    ├── normalize.py        → normalise chaque sévérité native vers
-    │                          un vocabulaire commun (critical/high/medium/secret)
-    │
-    ├── risk_engine.py      → calcule le score (0-100) et la classification
-    │
-    └── persistence.py      → sauvegarde scan + findings en PostgreSQL
-                               (models.py : tables `scans` et `findings`)
+.
+├── .github/workflows/   # Pipeline CI/CD (ci.yaml)
+├── argocd-apps/         # Applications ArgoCD (root, secureops, falco, monitoring)
+├── infrastructure/      # Terraform + values Helm (falco, monitoring, descheduler)
+├── k8s/                 # Manifests Kubernetes des microservices
+├── services/            # Code source des microservices
+├── db/                  # Schémas de base de données
+├── docs/                # Schémas et documentation
+└── docker-compose.yml   # Environnement local
 ```
 
-Ce découpage anticipe le passage en microservices (Phase 4 du blueprint) : chaque module a une responsabilité unique et sera facilement extractible dans son propre service.
+## 🚀 Déploiement
 
-## Stack technique
+### Prérequis
 
-- **Backend** : Python 3.12, FastAPI, SQLAlchemy
-- **Base de données** : PostgreSQL
-- **Scanners** : Semgrep (pip), Gitleaks v8.21.2 (binaire), Checkov (pip), Trivy v0.74.0 (binaire)
-- **Environnement de dev** : VM Ubuntu Desktop (VMware)
+AWS CLI configuré, Terraform, kubectl, un compte AWS et un dépôt GitHub.
 
-## Installation
+### Déployer l'infrastructure
 
 ```bash
-# Environnement Python
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Binaires (Gitleaks et Trivy ne sont pas des paquets pip)
-mkdir -p bin
-# Gitleaks
-curl -sL -o bin/gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
-tar -xzf bin/gitleaks.tar.gz -C bin gitleaks && rm bin/gitleaks.tar.gz && chmod +x bin/gitleaks
-# Trivy
-curl -sL -o bin/trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz
-tar -xzf bin/trivy.tar.gz -C bin trivy && rm bin/trivy.tar.gz && chmod +x bin/trivy
-
-# Base de données PostgreSQL
-sudo apt install -y postgresql postgresql-contrib
-sudo -u postgres psql -c "CREATE USER secureops_user WITH PASSWORD 'change_moi';"
-sudo -u postgres psql -c "CREATE DATABASE secureops_db OWNER secureops_user;"
-
-# Variables d'environnement
-cat > .env << 'EOF'
-DATABASE_URL=postgresql://secureops_user:change_moi@localhost:5432/secureops_db
-EOF
+cd infrastructure
+terraform init
+terraform apply
 ```
 
-## Lancer l'API
+Un seul `terraform apply` provisionne l'infrastructure AWS, installe ArgoCD avec Helm, puis crée l'Application `root`. ArgoCD déploie ensuite `secureops`, `falco` et `monitoring` depuis Git.
+
+### Se connecter au cluster
 
 ```bash
-cd services/scan
-uvicorn app:app --reload --port 8000
+aws eks update-kubeconfig --name secureops-cluster --region us-east-1
+kubectl get applications -n argocd
 ```
 
-Documentation interactive disponible sur `http://localhost:8000/docs`.
+Les quatre applications doivent être `Synced` et `Healthy`.
 
-### Exemples d'utilisation
+### Accéder à l'interface ArgoCD
 
 ```bash
-# Lancer un scan complet (synchrone, peut prendre 1-2 minutes)
-curl -X POST http://localhost:8000/scan \
-  -H "Content-Type: application/json" \
-  -d '{"repo_url": "https://github.com/pallets/flask.git"}'
+kubectl port-forward svc/argocd-server -n argocd 8080:443
 
-# Historique des scans
-curl http://localhost:8000/scans
-
-# Détail d'un scan précis
-curl http://localhost:8000/scans/1
+# Mot de passe initial de l'utilisateur admin
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d; echo
 ```
 
-## Décisions de conception notables
+Puis ouvrir `https://localhost:8080`.
 
-Quelques choix volontaires, documentés ici pour éviter toute impression qu'ils sont accidentels :
+### Environnement local
 
-- **Scanners installés localement (pas encore containerisés)** : la sandboxisation Docker par scan (isolation réseau, conteneur éphémère) est prévue en Phase 3-4. Séparer "faire fonctionner la logique" de "l'isoler proprement" a évité de déboguer deux problèmes à la fois.
-- **Endpoint `/scan` synchrone** : le passage à un traitement asynchrone (RabbitMQ, tâches de fond) est prévu en Phase 4 avec le découpage en microservices, pas avant.
-- **Normalisation des sévérités par scanner, dans des fonctions dédiées** (`normalize.py`) : chaque scanner a son propre vocabulaire de sévérité (Semgrep utilise ERROR/WARNING/INFO *et* parfois CRITICAL/HIGH/MEDIUM/LOW selon la catégorie de règle ; Trivy utilise le vocabulaire CVSS ; Checkov et Gitleaks n'ont pas de sévérité graduée en version gratuite). Une fonction de mapping par scanner permet de tester chaque cas isolément plutôt que de tout vérifier via un scan complet.
-- **Checkov restreint au framework `terraform`** (`--framework terraform`) : la détection de secrets intégrée à Checkov fait doublon avec Gitleaks ; chaque scanner reste responsable d'un seul domaine pour éviter de compter deux fois le même problème dans le score.
-- **Formule de scoring volontairement stricte** : `100 - 20×critical - 10×high - 3×medium - 15×secrets`. Sur un projet mature comme Flask (beaucoup de code d'exemple/documentation), le score tombe à 0 — ce n'est pas un bug, la formule est conservative par choix pour ce MVP et pourrait être pondérée différemment (ex: distinguer code source vs exemples) dans une itération future.
+```bash
+docker compose up --build
+```
 
-## Roadmap
+## 🧠 Difficultés rencontrées
 
-- [x] **Phase 1** — MVP local : clone + Semgrep + Gitleaks + score
-- [x] **Phase 2** — Persistance PostgreSQL, + Checkov + Trivy, API FastAPI complète
-- [ ] **Phase 3** — Authentification (JWT, multi-organisation), Dashboard React
-- [ ] **Phase 4** — Découpage en microservices, RabbitMQ, Notification Service
-- [ ] **Phase 5** — Déploiement AWS (EKS/ECR/RDS...), CI/CD, observabilité (Falco, Argo CD, Prometheus/Grafana)
-- [ ] **Phase 6** (post-v1) — Volet IA : explications de vulnérabilités en langage clair (LLM), puis suggestions de correction et remédiation assistée avec revue humaine obligatoire avant tout push Git
+- **CRDs Prometheus trop volumineux** : dépassement de la limite d'annotations, résolu avec `ServerSideApply=true` ;
+- **Labels Kubernetes manquants** : un label absent rendait la quarantaine inefficace sans erreur visible ;
+- **Rolling updates bloqués** sur un node group managé ;
+- **Format MIME** requis pour le bootstrap des nœuds EKS ;
+- **Quotas AWS** atteints pendant le déploiement.
 
-## Limitations connues du MVP
+## 🔭 Améliorations possibles
 
-- Scanners exécutés sur l'hôte, pas encore isolés dans des conteneurs éphémères
-- Pas d'authentification : tout scan est public, pas de notion d'organisation
-- Endpoint de scan synchrone : une requête HTTP reste ouverte pendant toute la durée du scan
-- Sévérité Checkov non graduée (limite de la version open-source de l'outil)
+- Épingler les versions des charts Helm (Falco, kube-prometheus-stack, ArgoCD) ;
+- Passer l'ALB en HTTPS avec un certificat ACM ;
+- Ajouter des tests automatisés dans le pipeline.
+
+## 👤 Auteur
+
+**hasna koussan ** ·  · [GitHub](https://github.com/hasnakoussan)

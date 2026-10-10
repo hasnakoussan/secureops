@@ -7,6 +7,7 @@ resource "aws_ecr_repository" "auth" {
   #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
   name                 = "${var.project_name}/auth"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -22,6 +23,7 @@ resource "aws_ecr_repository" "scan" {
   #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
   name                 = "${var.project_name}/scan"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -37,6 +39,7 @@ resource "aws_ecr_repository" "worker" {
   #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
   name                 = "${var.project_name}/worker"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -52,6 +55,7 @@ resource "aws_ecr_repository" "dashboard" {
   #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
   name                 = "${var.project_name}/dashboard"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -67,6 +71,7 @@ resource "aws_ecr_repository" "notification" {
   #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
   name                 = "${var.project_name}/notification"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -82,6 +87,7 @@ resource "aws_ecr_repository" "falco_bridge" {
   #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
   name                 = "${var.project_name}/falco-bridge"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -245,6 +251,7 @@ resource "aws_ecr_repository" "response" {
   #checkov:skip=CKV_AWS_136:AES256 default encryption judged sufficient for this portfolio, no dedicated KMS key.
   name                 = "${var.project_name}/response"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
