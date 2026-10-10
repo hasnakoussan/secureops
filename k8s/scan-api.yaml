@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: scan-api
-          image: 271858453792.dkr.ecr.us-east-1.amazonaws.com/secureops/scan:1d66e9c37b79bf32f1e437c7ac278c023ec42d31
+          image: 271858453792.dkr.ecr.us-east-1.amazonaws.com/secureops/scan:bea1a6356587599ffa5be08f66819a1975e85c59
           ports:
             - containerPort: 8000
           env:
